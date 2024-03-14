@@ -1,11 +1,21 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
+	"github.com/soulinmaikadua/go-gin-postgres/internal/models"
 	"github.com/soulinmaikadua/go-gin-postgres/internal/routes"
 )
 
 func main() {
+
+	// Initialize database
+	if err := models.InitDB(); err != nil {
+		log.Fatalf("Error initializing database: %v", err)
+	}
+	defer models.CloseDB()
+
 	r := gin.Default()
 
 	r.GET("/ping", func(ctx *gin.Context) {
@@ -13,6 +23,6 @@ func main() {
 			"message": "pong",
 		})
 	})
-	routes.SetupRoutes(r)
+	routes.UserRoutes(r)
 	r.Run()
 }
