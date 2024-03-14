@@ -1,0 +1,36 @@
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test coverage (optional, adjust based on your tool)
+*.out
+
+# IDE or editor temporary or backup files
+*.swo # IntelliJ IDEA
+*.suo  # Visual Studio
+*.vscode/ # Visual Studio Code
+
+# Dependency management
+/vendor/ # If using vendor directory
+
+# Generated files (optional, adjust based on your needs)
+*.pb.go   # Protocol Buffers generated files
+*.grpc.go # gRPC generated files
+
+# Go workspace file
+go.work
+
+# Temporary test data (optional)
+testdata/
+
+# Logs
+*.log
+
+# Environment specific configurations
+.env
+
+# Editor config (optional)
+.editorconfig
