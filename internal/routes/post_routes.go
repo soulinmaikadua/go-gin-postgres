@@ -11,5 +11,7 @@ func PostRoutes(router *gin.Engine) {
 		postGroup.POST("/", handlers.CreatePost)
 		postGroup.GET("/", handlers.GetPosts)
 		postGroup.GET("/:id", handlers.GetPost)
+		postGroup.PUT("/:id", handlers.UpdatePost)
+		postGroup.DELETE("/:id", handlers.DeletePost)
 	}
 }

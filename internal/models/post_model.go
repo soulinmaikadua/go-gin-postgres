@@ -22,6 +22,13 @@ type UserOnPost struct {
 	Email string    `db:"email" json:"email" validate:"required"`
 }
 
+type UpdatePost struct {
+	Title     string    `db:"title" json:"title"`
+	Details   string    `db:"details" json:"details"`
+	IsPublish bool      `db:"is_publish" json:"is_publish"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
 type ResponsePost struct {
 	ID        uuid.UUID  `db:"id" json:"id" validate:"required,uuid"`
 	Title     string     `db:"title" json:"title"`

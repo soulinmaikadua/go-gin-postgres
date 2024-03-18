@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,6 @@ func CreatePost(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	defer db.Close()
 
 	// Set the ID of the created user
 	post.ID = postID
@@ -89,4 +89,90 @@ func GetPost(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, post)
+}
+
+func UpdatePost(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	var post models.UpdatePost
+	// TODO: json binding
+	if err := ctx.BindJSON(&post); err != nil {
+		fmt.Println("Error updating user bad request:", err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Database connection
+	db := models.GetConnect()
+
+	// Execute the UPDATE query
+	query := "UPDATE posts SET "
+	var args []interface{}
+	argIndex := 1 // Start index for args
+
+	// Check if title is provided
+	if post.Title != "" {
+		query += "title=$" + strconv.Itoa(argIndex) + ", "
+		args = append(args, post.Title)
+		argIndex++
+	}
+
+	// Check if detail is provided
+	if post.Details != "" {
+		query += "details=$" + strconv.Itoa(argIndex) + ", "
+		args = append(args, post.Details)
+		argIndex++
+	}
+
+	// Check if is_publish is provided
+	if post.IsPublish {
+		query += "is_publish=$" + strconv.Itoa(argIndex) + ", "
+		args = append(args, post.IsPublish)
+		argIndex++
+	} else {
+		query += "is_publish=false"
+	}
+	// Default once
+	query += "updated_at=$" + strconv.Itoa(argIndex) + " WHERE id=$" + strconv.Itoa(argIndex+1)
+	args = append(args, time.Now(), id)
+
+	_, err := db.Exec(query, args...)
+	if err != nil {
+		fmt.Println("error executing query", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating post"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Post updated successfully"})
+}
+
+func DeletePost(ctx *gin.Context) {
+	// Extract user ID from the request parameters
+	userID := ctx.Param("id")
+
+	// Database connection
+	db := models.GetConnect()
+
+	// Prepare the DELETE query
+	query := "DELETE FROM posts WHERE id=$1"
+	// Execute the DELETE query
+	result, err := db.Exec(query, userID)
+	if err != nil {
+		fmt.Println("SQL error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting user"})
+		return
+	}
+	// Check if any rows were affected
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking rows affected"})
+		return
+	}
+
+	if rowsAffected == 0 {
+		// No user found with the given ID
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// User deleted successfully
+	ctx.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }

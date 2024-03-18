@@ -34,7 +34,6 @@ func CreateUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	defer db.Close()
 	// Set the ID of the created user
 	user.ID = userID
 
@@ -122,6 +121,7 @@ func UpdateUser(ctx *gin.Context) {
 		argIndex++
 	}
 
+	// Default
 	query += "updated_at=$" + strconv.Itoa(argIndex) + " WHERE id=$" + strconv.Itoa(argIndex+1)
 	args = append(args, time.Now(), id)
 
