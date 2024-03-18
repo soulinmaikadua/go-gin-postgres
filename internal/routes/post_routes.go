@@ -9,11 +9,13 @@ import (
 func PostRoutes(router *gin.Engine) {
 	postGroup := router.Group("/posts")
 	{
+		// Public routes
+		postGroup.GET("/", handlers.GetPublicPosts)
 		// Set verifyToken middleware for the postGroup route group
 		postGroup.Use(utils.VerifyToken)
 
 		postGroup.POST("/", handlers.CreatePost)
-		postGroup.GET("/", handlers.GetPosts)
+		postGroup.GET("/my-posts", handlers.GetPosts)
 		postGroup.GET("/:id", handlers.GetPost)
 		postGroup.PUT("/:id", handlers.UpdatePost)
 		postGroup.DELETE("/:id", handlers.DeletePost)

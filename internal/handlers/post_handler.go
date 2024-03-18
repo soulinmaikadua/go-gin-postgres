@@ -43,6 +43,52 @@ func CreatePost(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, post)
 }
 
+func GetPublicPosts(ctx *gin.Context) {
+	// Database connection
+	db := models.GetConnect()
+
+	// Prepare SQL query to fetch all posts with associated user information
+	query := "SELECT p.id, p.title, p.details, p.is_publish, p.created_at, p.updated_at, u.id AS user_id, u.name, u.email FROM posts p JOIN users u ON p.user_id = u.id"
+
+	// Execute the SQL query
+	rows, err := db.Query(query)
+	if err != nil {
+		// Return internal server error if query execution fails
+		fmt.Println("Error querying", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	// Initialize slice to store posts
+	var posts []models.ResponsePost
+
+	// Iterate over query results
+	for rows.Next() {
+		var post models.ResponsePost
+		// Scan row into post struct
+		err := rows.Scan(&post.ID, &post.Title, &post.Details, &post.IsPublish, &post.CreatedAt, &post.UpdatedAt, &post.User.ID, &post.User.Name, &post.User.Email)
+		if err != nil {
+			// Return internal server error if scanning fails
+			fmt.Println("Error scanning", err.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		// Append post to posts slice
+		posts = append(posts, post)
+	}
+
+	// Check for any errors encountered while iterating over results
+	if err := rows.Err(); err != nil {
+		// Return internal server error if error encountered
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return posts as JSON response
+	ctx.JSON(http.StatusOK, posts)
+}
+
 func GetPosts(ctx *gin.Context) {
 	// Get user ID from token
 	userId := ctx.GetString("id")
