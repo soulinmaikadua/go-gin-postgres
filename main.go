@@ -23,7 +23,11 @@ func main() {
 			"message": "pong",
 		})
 	})
+
+	// all routes
 	routes.UserRoutes(r)
 	routes.PostRoutes(r)
+	routes.AuthRoutes(r)
+
 	r.Run(":1234")
 }

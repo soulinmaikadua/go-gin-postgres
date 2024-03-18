@@ -7,39 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/soulinmaikadua/go-gin-postgres/internal/models"
 )
-
-func CreateUser(ctx *gin.Context) {
-	// Parse request body and create user
-	// Example:
-	var user models.User
-	if err := ctx.BindJSON(&user); err != nil {
-		fmt.Println("Error binding JSON")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get database connection
-	db := models.GetConnect()
-
-	// Prepare SQL query to insert a new user
-	query := "INSERT INTO users (id, name, email, gender, password, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
-	userID := uuid.New()
-	currentTime := time.Now()
-	err := db.QueryRow(query, userID, user.Name, user.Email, user.Gender, user.Password, currentTime, currentTime).Scan(&userID)
-	if err != nil {
-		fmt.Println("Error creating user:", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		return
-	}
-	// Set the ID of the created user
-	user.ID = userID
-
-	// Respond with the created user
-	ctx.JSON(http.StatusCreated, user)
-}
 
 func GetUsers(ctx *gin.Context) {
 	db := models.GetConnect()
