@@ -24,5 +24,6 @@ func main() {
 		})
 	})
 	routes.UserRoutes(r)
-	r.Run()
+	routes.PostRoutes(r)
+	r.Run(":1234")
 }
