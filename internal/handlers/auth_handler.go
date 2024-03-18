@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
@@ -29,6 +30,11 @@ func Login(ctx *gin.Context) {
 	var user models.User
 	err := db.QueryRow(query, loginInput.Email).Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Gender, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Handle case where no rows are found
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
+			return
+		}
 		fmt.Println("Error querying user:", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
@@ -49,7 +55,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// Set the token in the response header
-	ctx.Writer.Header().Set("Authorization", "Bearer "+token)
+	ctx.Writer.Header().Set("Authorization", token)
 
 	// Regenerate the a fake password
 	fakePwd, _ := utils.HashPassword("F**K Y_U M@N")
@@ -83,6 +89,15 @@ func Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
+	// Generate a new token
+	token, err := utils.GenerateNewToken(user)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+	// Set the token in the response header
+	ctx.Writer.Header().Set("Authorization", token)
+
 	// Set the ID of the created user
 	user.ID = userID
 

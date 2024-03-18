@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -11,44 +12,73 @@ import (
 )
 
 func GetUsers(ctx *gin.Context) {
+	// Get a connection to the database
 	db := models.GetConnect()
+
+	// Construct the query to fetch users
 	query := "SELECT id, name, email, gender, created_at, updated_at FROM users"
+
+	// Execute the query to fetch users
 	rows, err := db.Query(query)
 	if err != nil {
-		fmt.Println("Error querying")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Handle database query error
+		fmt.Println("Error querying users:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error querying users"})
 		return
 	}
 	defer rows.Close()
 
+	// Initialize a slice to hold users
 	var users []models.ResponseUser
+
+	// Iterate over the result set and scan each row into a ResponseUser struct
 	for rows.Next() {
 		var user models.ResponseUser
 		err := rows.Scan(&user.ID, &user.Name, &user.Gender, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 		if err != nil {
-			fmt.Println("Error scanning")
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			// Handle scanning error
+			fmt.Println("Error scanning user row:", err.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error scanning user row"})
 			return
 		}
+		// Append the user to the slice
 		users = append(users, user)
 	}
+
+	// Check for any errors during iteration
 	if err := rows.Err(); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Handle iteration error
+		fmt.Println("Error iterating over user rows:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating over user rows"})
 		return
 	}
 
+	// Return the list of users as JSON response
 	ctx.JSON(http.StatusOK, users)
 }
 
 func GetUser(ctx *gin.Context) {
+	// Extract the user ID from the request parameters
 	id := ctx.Param("id")
+
+	// Get a connection to the database
 	db := models.GetConnect()
+
 	// Prepare SQL query to fetch a single user by ID
 	query := "SELECT id, name, email, gender, created_at, updated_at FROM users WHERE id = $1"
 
+	// Initialize a ResponseUser struct to hold the fetched user
 	var user models.ResponseUser
+
+	// Execute the query and scan the result into the ResponseUser struct
 	err := db.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email, &user.Gender, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Handle case where no rows are found
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		// Handle other errors
 		fmt.Println("Error querying user:", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
@@ -59,19 +89,22 @@ func GetUser(ctx *gin.Context) {
 }
 
 func UpdateUser(ctx *gin.Context) {
+	// Extract user ID from the request URL
 	id := ctx.Param("id")
 
+	// Bind the JSON request to the UpdateUser struct
 	var user models.UpdateUser
 	if err := ctx.BindJSON(&user); err != nil {
-		fmt.Println("Error updating user bad request:", err.Error())
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// Return a bad request response if JSON binding fails
+		fmt.Println("Error updating user: Bad request", err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
 		return
 	}
 
-	// Database connection
+	// Get a connection to the database
 	db := models.GetConnect()
 
-	// Execute the UPDATE query
+	// Construct the UPDATE query
 	query := "UPDATE users SET "
 	var args []interface{}
 	argIndex := 1 // Start index for args
@@ -90,17 +123,20 @@ func UpdateUser(ctx *gin.Context) {
 		argIndex++
 	}
 
-	// Default
+	// Set the updated_at field
 	query += "updated_at=$" + strconv.Itoa(argIndex) + " WHERE id=$" + strconv.Itoa(argIndex+1)
 	args = append(args, time.Now(), id)
 
+	// Execute the UPDATE query
 	_, err := db.Exec(query, args...)
 	if err != nil {
-		fmt.Println("Error executing query", err.Error())
+		// Handle database error
+		fmt.Println("Error updating user:", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user"})
 		return
 	}
 
+	// Return a success message
 	ctx.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
