@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 )
 
 func CreatePost(ctx *gin.Context) {
+	userID := ctx.GetString("id")
 	var post models.Post
 	// Parse request body and create user
 	if err := ctx.BindJSON(&post); err != nil {
@@ -19,9 +21,6 @@ func CreatePost(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	// This will be changed in the future
-	userID := "21d936b2-fc68-4dbc-8f20-c7c88a7e4a39"
 
 	// Get database connection
 	db := models.GetConnect()
@@ -45,66 +44,104 @@ func CreatePost(ctx *gin.Context) {
 }
 
 func GetPosts(ctx *gin.Context) {
-
+	// Get user ID from token
+	userId := ctx.GetString("id")
+	// Database connection
 	db := models.GetConnect()
-	query := "SELECT p.id, p.title, p.details, p.is_publish, p.created_at, p.updated_at, u.id AS user_id, u.name, u.email FROM posts p JOIN users u ON p.user_id = u.id "
-	rows, err := db.Query(query)
+
+	// Prepare SQL query to fetch all posts with associated user information
+	query := "SELECT p.id, p.title, p.details, p.is_publish, p.created_at, p.updated_at, u.id AS user_id, u.name, u.email FROM posts p JOIN users u ON p.user_id = u.id WHERE p.user_id =$1 "
+
+	// Execute the SQL query
+	rows, err := db.Query(query, userId)
 	if err != nil {
-		fmt.Println("Error querying")
+		// Return internal server error if query execution fails
+		fmt.Println("Error querying", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer rows.Close()
 
+	// Initialize slice to store posts
 	var posts []models.ResponsePost
+
+	// Iterate over query results
 	for rows.Next() {
 		var post models.ResponsePost
+		// Scan row into post struct
 		err := rows.Scan(&post.ID, &post.Title, &post.Details, &post.IsPublish, &post.CreatedAt, &post.UpdatedAt, &post.User.ID, &post.User.Name, &post.User.Email)
 		if err != nil {
-			fmt.Println("Error scanning")
+			// Return internal server error if scanning fails
+			fmt.Println("Error scanning", err.Error())
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		// Append post to posts slice
 		posts = append(posts, post)
 	}
+
+	// Check for any errors encountered while iterating over results
 	if err := rows.Err(); err != nil {
+		// Return internal server error if error encountered
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// Return posts as JSON response
 	ctx.JSON(http.StatusOK, posts)
 }
 
 func GetPost(ctx *gin.Context) {
+	// Get user ID from token
+	userId := ctx.GetString("id")
+
+	// Get post ID from URL parameter
 	id := ctx.Param("id")
+
+	// Get a connection to the database
 	db := models.GetConnect()
-	query := "SELECT p.id, p.title, p.details, p.is_publish, p.created_at, p.updated_at, u.id AS user_id, u.name, u.email FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id=$1"
+
+	// Prepare SQL query to fetch a single post by ID
+	query := "SELECT p.id, p.title, p.details, p.is_publish, p.created_at, p.updated_at, u.id AS user_id, u.name, u.email FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id=$1 AND p.user_id = $2"
 
 	var post models.ResponsePost
-	err := db.QueryRow(query, id).Scan(&post.ID, &post.Title, &post.Details, &post.IsPublish, &post.CreatedAt, &post.UpdatedAt, &post.User.ID, &post.User.Name, &post.User.Email)
+	// Execute query
+	err := db.QueryRow(query, id, userId).Scan(&post.ID, &post.Title, &post.Details, &post.IsPublish, &post.CreatedAt, &post.UpdatedAt, &post.User.ID, &post.User.Name, &post.User.Email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Handle case where no rows are found
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
+			return
+		}
+		// Log the error
 		fmt.Println("Error scanning")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// Respond with the fetched post
 	ctx.JSON(http.StatusOK, post)
 }
 
 func UpdatePost(ctx *gin.Context) {
+	// Extract post ID from the request parameters
 	id := ctx.Param("id")
 
+	// Initialize a struct to store the updated post data
 	var post models.UpdatePost
-	// TODO: json binding
+
+	// Bind JSON request body to the post struct
 	if err := ctx.BindJSON(&post); err != nil {
-		fmt.Println("Error updating user bad request:", err.Error())
+		// Return a Bad Request response if JSON binding fails
+		fmt.Println("Error updating post bad request:", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	// Database connection
 	db := models.GetConnect()
 
-	// Execute the UPDATE query
+	// Prepare the UPDATE query
 	query := "UPDATE posts SET "
 	var args []interface{}
 	argIndex := 1 // Start index for args
@@ -116,7 +153,7 @@ func UpdatePost(ctx *gin.Context) {
 		argIndex++
 	}
 
-	// Check if detail is provided
+	// Check if details is provided
 	if post.Details != "" {
 		query += "details=$" + strconv.Itoa(argIndex) + ", "
 		args = append(args, post.Details)
@@ -129,18 +166,24 @@ func UpdatePost(ctx *gin.Context) {
 		args = append(args, post.IsPublish)
 		argIndex++
 	} else {
-		query += "is_publish=false"
+		// Set is_publish to false if not provided
+		query += "is_publish=false, "
 	}
-	// Default once
+
+	// Set updated_at field
 	query += "updated_at=$" + strconv.Itoa(argIndex) + " WHERE id=$" + strconv.Itoa(argIndex+1)
 	args = append(args, time.Now(), id)
 
+	// Execute the UPDATE query
 	_, err := db.Exec(query, args...)
 	if err != nil {
-		fmt.Println("error executing query", err.Error())
+		// Return an internal server error if query execution fails
+		fmt.Println("Error executing query:", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating post"})
 		return
 	}
+
+	// Respond with success message
 	ctx.JSON(http.StatusOK, gin.H{"message": "Post updated successfully"})
 }
 
