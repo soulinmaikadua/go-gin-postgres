@@ -27,9 +27,10 @@ func main() {
 	})
 
 	// Register application routes for users, posts, and authentication
-	routes.AuthRoutes(r) // Register authentication-related routes
-	routes.UserRoutes(r) // Register routes related to user management
-	routes.PostRoutes(r) // Register routes related to post management
+	routes.AuthRoutes(r)   // Register authentication-related routes
+	routes.UserRoutes(r)   // Register routes related to user management
+	routes.PostRoutes(r)   // Register routes related to post management
+	routes.SearchRoutes(r) // Register routes related to search management
 
 	r.Run(":1234")
 }
