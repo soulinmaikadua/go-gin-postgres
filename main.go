@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/soulinmaikadua/go-gin-postgres/internal/middleware"
 	"github.com/soulinmaikadua/go-gin-postgres/internal/models"
 	"github.com/soulinmaikadua/go-gin-postgres/internal/routes"
 )
@@ -18,11 +19,18 @@ func main() {
 
 	// Initialize Gin router with default middleware
 	r := gin.Default()
+	r.Use(middleware.UserAgentMiddleware())
 
 	// Define a simple ping route for testing server connectivity
 	r.GET("/ping", func(ctx *gin.Context) {
+		// Get the User-Agent header from the HTTP request
+		userAgent := ctx.GetHeader("User-Agent")
+		// Get the User-Agent info from the request context
+		info, _ := ctx.Get("user_agent")
 		ctx.JSON(200, gin.H{
-			"message": "pong",
+			"message":    "pong",
+			"user_agent": userAgent,
+			"info":       info,
 		})
 	})
 
