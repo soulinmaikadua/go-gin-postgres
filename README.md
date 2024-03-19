@@ -57,3 +57,13 @@ After building the application, you can run it using the following command:
 ```
 
 Replace `<output-file-name>` with the name of the executable file generated during the build process.
+
+Build and run on Docker
+
+```bash
+docker build -t my-gin-app .
+```
+
+```bash
+docker run -d -p 1234:1234 my-gin-app
+```
